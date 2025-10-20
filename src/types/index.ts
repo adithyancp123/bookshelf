@@ -1,49 +1,31 @@
 export interface Book {
-  id: string;
+  book_id: number;
   title: string;
   author: string;
-  isbn: string;
-  description: string;
   genre: string;
-  publication_date: string;
-  cover_image: string;
-  created_at: string;
-  updated_at: string;
-  average_rating: number;
-  total_reviews: number;
+  published_year: number | null;
+  average_rating?: number;
+  total_reviews?: number;
 }
 
 export interface Review {
-  id: string;
-  book_id: string;
-  user_id: string;
+  review_id: number;
+  book_id: number;
+  user_id: number;
   rating: number;
-  comment: string;
-  created_at: string;
-  updated_at: string;
-  user?: {
-    id: string;
-    email: string;
-    full_name: string;
-    avatar_url?: string;
-  };
+  comment: string | null;
+  timestamp: string;
+  name: string; // User name from the joined query
 }
 
 export interface User {
-  id: string;
+  user_id: number;
+  name: string;
   email: string;
-  full_name: string;
-  avatar_url?: string;
-  bio?: string;
-  created_at: string;
-  updated_at: string;
 }
 
 export interface AuthUser {
-  id: string;
-  email?: string;
-  user_metadata?: {
-    full_name?: string;
-    avatar_url?: string;
-  };
+  user_id: number;
+  name: string;
+  email: string;
 }

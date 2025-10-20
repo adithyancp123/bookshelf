@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import { getReviewsByBookId, addReview } from '../lib/api';
 import { Review } from '../types';
 
 export function useReviews(bookId: string) {
@@ -18,57 +18,27 @@ export function useReviews(bookId: string) {
       setLoading(true);
       setError(null);
 
-      const { data, error: fetchError } = await supabase
-        .from('reviews')
-        .select(`
-          *,
-          profiles:user_id (
-            id,
-            email,
-            full_name,
-            avatar_url
-          )
-        `)
-        .eq('book_id', bookId)
-        .order('created_at', { ascending: false });
-
-      if (fetchError) throw fetchError;
-
-      const reviewsWithUser = data?.map(review => ({
-        ...review,
-        user: review.profiles,
-        profiles: undefined,
-      })) || [];
-
-      setReviews(reviewsWithUser);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      const data = await getReviewsByBookId(bookId);
+      setReviews(data);
+    } catch (err: any) {
+      setError(err.response?.data?.message || err.message || 'An error occurred');
     } finally {
       setLoading(false);
     }
   };
 
-  const addReview = async (rating: number, comment: string, userId: string) => {
+  const addReviewHandler = async (rating: number, comment: string) => {
     try {
-      const { error } = await supabase
-        .from('reviews')
-        .insert({
-          book_id: bookId,
-          user_id: userId,
-          rating,
-          comment,
-        });
-
-      if (error) throw error;
-      await fetchReviews();
+      await addReview(bookId, rating, comment);
+      await fetchReviews(); // Refresh reviews after adding
       return { success: true };
-    } catch (err) {
+    } catch (err: any) {
       return { 
         success: false, 
-        error: err instanceof Error ? err.message : 'Failed to add review' 
+        error: err.response?.data?.message || err.message || 'Failed to add review' 
       };
     }
   };
 
-  return { reviews, loading, error, addReview, refetch: fetchReviews };
+  return { reviews, loading, error, addReview: addReviewHandler, refetch: fetchReviews };
 }

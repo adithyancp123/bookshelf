@@ -11,17 +11,14 @@ interface BookCardProps {
 export function BookCard({ book }: BookCardProps) {
   return (
     <Link
-      to={`/books/${book.id}`}
+      to={`/books/${book.book_id}`}
       className="group bg-white rounded-xl shadow-book hover:shadow-book-hover transition-all duration-300 overflow-hidden transform hover:-translate-y-1"
     >
       <div className="aspect-[3/4] overflow-hidden bg-gray-100">
         <img
-          src={book.cover_image || `https://images.pexels.com/photos/159866/books-book-pages-read-literature-159866.jpeg?auto=compress&cs=tinysrgb&w=400`}
+          src={`https://images.pexels.com/photos/159866/books-book-pages-read-literature-159866.jpeg?auto=compress&cs=tinysrgb&w=400`}
           alt={book.title}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-          onError={(e) => {
-            e.currentTarget.src = `https://images.pexels.com/photos/159866/books-book-pages-read-literature-159866.jpeg?auto=compress&cs=tinysrgb&w=400`;
-          }}
         />
       </div>
       
@@ -40,21 +37,17 @@ export function BookCard({ book }: BookCardProps) {
           by {book.author}
         </p>
         
-        <p className="text-gray-600 text-sm mb-4 line-clamp-3">
-          {book.description}
-        </p>
-        
         <div className="flex items-center justify-between">
-          <StarRating rating={book.average_rating} size="sm" />
+          <StarRating rating={book.average_rating || 0} size="sm" />
           
           <div className="flex items-center space-x-4 text-xs text-gray-500">
             <div className="flex items-center space-x-1">
               <MessageCircle className="h-3 w-3" />
-              <span>{book.total_reviews}</span>
+              <span>{book.total_reviews || 0}</span>
             </div>
             <div className="flex items-center space-x-1">
               <Calendar className="h-3 w-3" />
-              <span>{new Date(book.publication_date).getFullYear()}</span>
+              <span>{book.published_year || 'Unknown'}</span>
             </div>
           </div>
         </div>

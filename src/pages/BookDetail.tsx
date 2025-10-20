@@ -20,7 +20,7 @@ export function BookDetail() {
       return { success: false, error: 'Please sign in to submit a review' };
     }
 
-    const result = await addReview(rating, comment, user.id);
+    const result = await addReview(rating, comment);
     if (result.success) {
       await refetchReviews();
     }
@@ -69,12 +69,9 @@ export function BookDetail() {
             <div className="bg-white rounded-xl shadow-sm p-6 sticky top-8">
               <div className="aspect-[3/4] mb-6 rounded-lg overflow-hidden bg-gray-100">
                 <img
-                  src={book.cover_image || `https://images.pexels.com/photos/159866/books-book-pages-read-literature-159866.jpeg?auto=compress&cs=tinysrgb&w=600`}
+                  src={`https://images.pexels.com/photos/159866/books-book-pages-read-literature-159866.jpeg?auto=compress&cs=tinysrgb&w=600`}
                   alt={book.title}
                   className="w-full h-full object-cover"
-                  onError={(e) => {
-                    e.currentTarget.src = `https://images.pexels.com/photos/159866/books-book-pages-read-literature-159866.jpeg?auto=compress&cs=tinysrgb&w=600`;
-                  }}
                 />
               </div>
 
@@ -86,23 +83,18 @@ export function BookDetail() {
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <StarRating rating={book.average_rating} size="md" />
+                  <StarRating rating={book.average_rating || 0} size="md" />
                   <div className="flex items-center space-x-1 text-sm text-gray-500">
                     <MessageCircle className="h-4 w-4" />
-                    <span>{book.total_reviews} reviews</span>
+                    <span>{book.total_reviews || 0} reviews</span>
                   </div>
                 </div>
 
                 <div className="pt-4 border-t border-gray-200">
                   <div className="flex items-center space-x-2 text-sm text-gray-600">
                     <Calendar className="h-4 w-4" />
-                    <span>Published {new Date(book.publication_date).getFullYear()}</span>
+                    <span>Published {book.published_year || 'Unknown'}</span>
                   </div>
-                  {book.isbn && (
-                    <p className="text-sm text-gray-600 mt-2">
-                      ISBN: {book.isbn}
-                    </p>
-                  )}
                 </div>
               </div>
             </div>
@@ -117,7 +109,9 @@ export function BookDetail() {
               
               <div className="prose max-w-none">
                 <h3 className="text-lg font-semibold text-gray-900 mb-3">Description</h3>
-                <p className="text-gray-700 leading-relaxed">{book.description}</p>
+                <p className="text-gray-700 leading-relaxed">
+                  No description available for this book.
+                </p>
               </div>
             </div>
 
@@ -151,7 +145,7 @@ export function BookDetail() {
             {/* Reviews */}
             <div className="bg-white rounded-xl shadow-sm p-8">
               <h3 className="text-xl font-semibold text-gray-900 mb-6">
-                Reviews ({book.total_reviews})
+                Reviews ({book.total_reviews || 0})
               </h3>
 
               {reviewsLoading ? (
@@ -161,7 +155,7 @@ export function BookDetail() {
               ) : reviews.length > 0 ? (
                 <div className="space-y-6">
                   {reviews.map((review) => (
-                    <ReviewCard key={review.id} review={review} />
+                    <ReviewCard key={review.review_id} review={review} />
                   ))}
                 </div>
               ) : (

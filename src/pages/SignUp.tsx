@@ -8,7 +8,7 @@ export function SignUp() {
   const navigate = useNavigate();
   const { signUp } = useAuth();
   const [formData, setFormData] = useState({
-    fullName: '',
+    name: '',
     email: '',
     password: '',
     confirmPassword: '',
@@ -33,10 +33,10 @@ export function SignUp() {
       return;
     }
 
-    const { error } = await signUp(formData.email, formData.password, formData.fullName);
+    const { error } = await signUp(formData.name, formData.email, formData.password);
 
     if (error) {
-      setError(error.message);
+      setError(error);
     } else {
       navigate('/');
     }
@@ -84,17 +84,17 @@ export function SignUp() {
             )}
 
             <div>
-              <label htmlFor="fullName" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="name" className="block text-sm font-medium text-gray-700">
                 Full name
               </label>
               <div className="mt-1 relative">
                 <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <input
-                  id="fullName"
-                  name="fullName"
+                  id="name"
+                  name="name"
                   type="text"
                   required
-                  value={formData.fullName}
+                  value={formData.name}
                   onChange={handleChange}
                   className="appearance-none block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
                   placeholder="Enter your full name"

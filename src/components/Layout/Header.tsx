@@ -4,7 +4,7 @@ import { BookOpen, Search, User, LogOut, Menu, X, Moon, Sun } from 'lucide-react
 import { useAuth } from '../../contexts/AuthContext';
 
 export function Header() {
-  const { user, profile, signOut } = useAuth();
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -37,8 +37,8 @@ export function Header() {
     }
   };
 
-  const handleSignOut = async () => {
-    await signOut();
+  const handleSignOut = () => {
+    signOut();
     navigate('/');
     setIsMenuOpen(false);
   };
@@ -84,13 +84,10 @@ export function Header() {
             
             {user ? (
               <div className="flex items-center space-x-4">
-                <Link
-                  to="/profile"
-                  className="flex items-center space-x-2 text-gray-700 dark:text-gray-100 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
-                >
+                <div className="flex items-center space-x-2 text-gray-700 dark:text-gray-100">
                   <User className="h-4 w-4" />
-                  <span>{profile?.full_name || 'Profile'}</span>
-                </Link>
+                  <span>{user?.name || 'User'}</span>
+                </div>
                 <button
                   onClick={handleSignOut}
                   className="flex items-center space-x-2 text-gray-700 dark:text-gray-100 hover:text-red-600 dark:hover:text-red-400 transition-colors"
@@ -164,13 +161,9 @@ export function Header() {
             
             {user ? (
               <>
-                <Link
-                  to="/profile"
-                  className="block py-2 text-gray-700 hover:text-primary-600 transition-colors"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  Profile
-                </Link>
+                <div className="block py-2 text-gray-700 hover:text-primary-600 transition-colors">
+                  {user?.name || 'User'}
+                </div>
                 <button
                   onClick={handleSignOut}
                   className="block w-full text-left py-2 text-gray-700 hover:text-red-600 transition-colors"

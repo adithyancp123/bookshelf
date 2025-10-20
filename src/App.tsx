@@ -8,7 +8,6 @@ import { Books } from './pages/Books';
 import { BookDetail } from './pages/BookDetail';
 import { SignIn } from './pages/SignIn';
 import { SignUp } from './pages/SignUp';
-import { Profile } from './pages/Profile';
 
 function App() {
   return (
@@ -23,7 +22,6 @@ function App() {
               <Route path="/books/:id" element={<BookDetail />} />
               <Route path="/signin" element={<SignIn />} />
               <Route path="/signup" element={<SignUp />} />
-              <Route path="/profile" element={<Profile />} />
             </Routes>
           </main>
           <Footer />

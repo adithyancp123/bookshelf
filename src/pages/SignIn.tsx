@@ -22,7 +22,7 @@ export function SignIn() {
     const { error } = await signIn(formData.email, formData.password);
 
     if (error) {
-      setError(error.message);
+      setError(error);
     } else {
       navigate('/');
     }
