@@ -59,9 +59,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signUp = async (name: string, email: string, password: string) => {
     try {
+      // First, register the user
       await registerUser(name, email, password);
-      return { error: null };
+      
+      // If registration is successful, automatically log the user in
+      return await signIn(email, password);
     } catch (error: any) {
+      // If registration fails, return the registration error
       return { error: error.response?.data?.message || 'Registration failed' };
     }
   };

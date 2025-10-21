@@ -1,86 +1,105 @@
-'use strict';
+// express-backend/populate_books.js
 
 const axios = require('axios');
 const dotenv = require('dotenv');
-const { db, pool } = require('./db');
+const pool = require('./db'); // Import the database pool
 
-dotenv.config();
+dotenv.config(); // Load environment variables from .env
 
-const { GOOGLE_BOOKS_API_KEY } = process.env;
+const API_KEY = process.env.GOOGLE_BOOKS_API_KEY;
+const BASE_URL = 'https://www.googleapis.com/books/v1/volumes';
 
+// Function to fetch books from Google Books API
 async function fetchBooksFromAPI(query) {
-  const params = {
-    q: query,
-    maxResults: 40,
-    printType: 'books',
-    orderBy: 'relevance',
-  };
+  try {
+    const response = await axios.get(BASE_URL, {
+      params: {
+        q: query,
+        key: API_KEY,
+        maxResults: 40, // Fetch up to 40 books per query
+        printType: 'books', // Ensure we only get books
+        orderBy: 'relevance', // Or 'newest'
+      },
+    });
+    return response.data.items || []; // Return items array or empty array if none found
+  } catch (error) {
+    console.error(`Failed to fetch books for query "${query}":`, error.response ? error.response.status : error.message);
+    // Optionally log more detail: console.error(error.response?.data?.error?.message);
+    return []; // Return empty array on error
+  }
+}
 
-  if (GOOGLE_BOOKS_API_KEY && GOOGLE_BOOKS_API_KEY !== 'your_api_key_here') {
-    params.key = GOOGLE_BOOKS_API_KEY;
+// Function to insert book data into the MySQL database
+async function insertBooksIntoDB(apiBooks) {
+  let insertedCount = 0;
+  if (!apiBooks || apiBooks.length === 0) {
+    return insertedCount;
   }
 
-  const url = 'https://www.googleapis.com/books/v1/volumes';
+  const connection = await pool.getConnection(); // Get a connection from the pool
 
   try {
-    const response = await axios.get(url, { params });
-    const items = Array.isArray(response.data && response.data.items)
-      ? response.data.items
-      : [];
-    return items;
-  } catch (error) {
-    // eslint-disable-next-line no-console
-    if (error.response && error.response.data) {
-      console.error(`Failed to fetch books for query "${query}":`, error.response.status, error.response.data);
-    } else {
-      console.error(`Failed to fetch books for query "${query}":`, error.message);
+    await connection.beginTransaction(); // Start a transaction
+
+    // Prepare the insert query including the new cover_image_url column
+    const insertQuery = `
+      INSERT INTO Book (title, author, genre, published_year, cover_image_url)
+      VALUES (?, ?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE title=VALUES(title); -- Example: Avoid errors if book somehow already exists (based on a unique key if you add one later)
+    `;
+
+    for (const item of apiBooks) {
+      if (!item.volumeInfo) continue; // Skip if no volumeInfo
+
+      const volumeInfo = item.volumeInfo;
+
+      // Extract data, providing defaults or null
+      const title = volumeInfo.title || 'Unknown Title';
+      const author = volumeInfo.authors ? volumeInfo.authors[0] : 'Unknown Author'; // Take first author
+      const genre = volumeInfo.categories ? volumeInfo.categories[0] : 'General'; // Take first category or default
+      let publishedYear = null;
+      if (volumeInfo.publishedDate) {
+        // Extract only the year (YYYY)
+        const yearMatch = volumeInfo.publishedDate.match(/^\d{4}/);
+        if (yearMatch) {
+          publishedYear = parseInt(yearMatch[0], 10);
+        }
+      }
+
+      // --- NEW: Extract Cover Image URL ---
+      const imageLinks = volumeInfo.imageLinks;
+      const coverImageUrl = imageLinks?.thumbnail || imageLinks?.smallThumbnail || null;
+      // --- End NEW ---
+
+      try {
+        // Execute the insert query with all parameters, including coverImageUrl
+        await connection.query(insertQuery, [
+          title,
+          author,
+          genre,
+          publishedYear,
+          coverImageUrl // Add the image URL here
+        ]);
+        insertedCount++;
+      } catch (insertError) {
+        // Log individual insert errors but continue with other books
+        console.error(`Insert failed for book: { title: '${title}', author: '${author}' }`, insertError.message);
+      }
     }
-    return [];
-  }
-}
 
-function extractYear(publishedDate) {
-  if (!publishedDate || typeof publishedDate !== 'string') return null;
-  const yearPart = publishedDate.slice(0, 4);
-  const yearNum = Number(yearPart);
-  return Number.isFinite(yearNum) ? yearNum : null;
-}
+    await connection.commit(); // Commit the transaction if all inserts (or those that didn't fail individually) are done
 
-async function insertBooksIntoDB(books) {
-  if (!Array.isArray(books) || books.length === 0) return 0;
-
-  let insertedCount = 0;
-
-  for (const item of books) {
-    const info = item && item.volumeInfo ? item.volumeInfo : {};
-    const title = info.title ? String(info.title).trim() : null;
-    const author = Array.isArray(info.authors) && info.authors.length > 0
-      ? String(info.authors[0]).trim()
-      : 'Unknown';
-    const genre = Array.isArray(info.categories) && info.categories.length > 0
-      ? String(info.categories[0]).trim()
-      : 'General';
-    const publishedYear = extractYear(info.publishedDate);
-
-    if (!title) {
-      continue;
-    }
-
-    try {
-      await db.execute(
-        'INSERT INTO `Book` (`title`, `author`, `genre`, `published_year`) VALUES (?, ?, ?, ?)',
-        [title, author, genre, publishedYear]
-      );
-      insertedCount += 1;
-    } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error('Insert failed for book:', { title, author }, error.message);
-    }
+  } catch (err) {
+    await connection.rollback(); // Rollback transaction on major error
+    console.error('Error during database insertion transaction:', err);
+  } finally {
+    connection.release(); // Always release the connection back to the pool
   }
 
   return insertedCount;
 }
 
+// Main function to orchestrate fetching and inserting
 async function main() {
   const searchTerms = [
     'fiction',
@@ -89,39 +108,39 @@ async function main() {
     'biography',
     'history',
     'romance',
+    // Add more general terms or specific genres if desired
   ];
+  let totalBooksInserted = 0;
 
   try {
-    let totalInserted = 0;
+    // --- NEW: Clear existing books ---
+    console.log('Clearing existing books from the table...');
+    const [deleteResult] = await pool.query('DELETE FROM Book;');
+    console.log(`Book table cleared (${deleteResult.affectedRows} rows deleted). Repopulating with image URLs...`);
+    // --- End NEW ---
+
     for (const term of searchTerms) {
-      // eslint-disable-next-line no-console
       console.log(`Fetching books for term: ${term}`);
-      const apiBooks = await fetchBooksFromAPI(term);
-      const inserted = await insertBooksIntoDB(apiBooks);
-      totalInserted += inserted;
-      // eslint-disable-next-line no-console
-      console.log(`Inserted ${inserted} books for term: ${term}`);
-    }
-    // eslint-disable-next-line no-console
-    console.log(`Done. Total books inserted: ${totalInserted}`);
-  } catch (error) {
-    // eslint-disable-next-line no-console
-    console.error('Unexpected error running populate script:', error);
-  } finally {
-    pool.end((err) => {
-      if (err) {
-        // eslint-disable-next-line no-console
-        console.error('Error closing MySQL pool:', err.message);
+      const booksFromAPI = await fetchBooksFromAPI(term);
+      if (booksFromAPI.length > 0) {
+        const count = await insertBooksIntoDB(booksFromAPI);
+        console.log(`Inserted ${count} books for term: ${term}`);
+        totalBooksInserted += count;
       } else {
-        // eslint-disable-next-line no-console
-        console.log('MySQL pool closed.');
+        console.log(`No books found or error fetching for term: ${term}`);
       }
-    });
+      // Optional delay to avoid hitting API rate limits too quickly
+      // await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+
+  } catch (error) {
+    console.error('An error occurred during the main process:', error);
+  } finally {
+    console.log(`Done. Total books inserted: ${totalBooksInserted}`);
+    await pool.end(); // Close all connections in the pool
+    console.log('MySQL pool closed.');
   }
 }
 
-// Execute
+// Execute the main function
 main();
-
-
-
